@@ -9,26 +9,40 @@ module Spree
 
       included do
         def self.supports_s3(field)
-          # Load user defined paperclip settings
-          config = Spree::Config
-          return unless config[:use_s3]
+          if Spree::Config[:use_s3]
+            set_attachment_attributes(field)
+          else
+            attachment_definitions[field].delete(:storage)
+          end
+        end
 
-          s3_creds = { access_key_id: config[:s3_access_key],
-                       secret_access_key: config[:s3_secret],
-                       bucket: config[:s3_bucket] }
-          attachment_definitions[field][:storage] = :s3
-          attachment_definitions[field][:s3_credentials] = s3_creds
-          attachment_definitions[field][:s3_headers] = ActiveSupport::JSON.
-            decode(config[:s3_headers])
-          attachment_definitions[field][:bucket] = config[:s3_bucket]
+        def self.set_attachment_attribute_for(field, attribute_name, attribute_value)
+          attachment_definitions[field][attribute_name] = attribute_value
+        end
+
+        def self.set_attachment_attributes(field)
+          set_attachment_attribute_for(field, :storage, :s3)
+          set_attachment_attribute_for(field, :s3_credentials, s3_credentials)
+          set_attachment_attribute_for(
+            field, :s3_headers, ActiveSupport::JSON.decode(Spree::Config[:s3_headers])
+          )
+          set_attachment_attribute_for(field, :bucket, Spree::Config[:s3_bucket])
           if config[:s3_protocol].present?
-            attachment_definitions[field][:s3_protocol] = config[:s3_protocol].downcase
+            set_attachment_attribute_for(field, :s3_protocol, Spree::Config[:s3_protocol].downcase)
           end
 
-          return if config[:s3_host_alias].blank?
-
-          attachment_definitions[field][:s3_host_alias] = config[:s3_host_alias]
+          # We use :s3_alias_url (virtual host url style) and set the URL on property s3_host_alias
+          set_attachment_attribute_for(field, :s3_host_alias, ENV['ATTACHMENT_URL'])
+          set_attachment_attribute_for(field, :url, ':s3_alias_url')
         end
+        private_class_method :set_attachment_attributes
+
+        def self.s3_credentials
+          { access_key_id: Spree::Config[:s3_access_key],
+            secret_access_key: Spree::Config[:s3_secret],
+            bucket: Spree::Config[:s3_bucket] }
+        end
+        private_class_method :s3_credentials
       end
     end
   end
