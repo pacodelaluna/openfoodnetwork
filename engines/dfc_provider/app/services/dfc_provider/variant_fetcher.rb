@@ -12,7 +12,8 @@ module DfcProvider
     def scope
       Spree::Variant.
         joins(product: :supplier).
-        where('enterprises.id' => @enterprise.id)
+        where('enterprises.id' => @enterprise.id).
+        where(is_master: false)
     end
   end
 end
